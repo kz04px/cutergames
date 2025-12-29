@@ -1,0 +1,6 @@
+[package]
+name = "cutergames"
+version = "0.1.0"
+edition = "2024"
+description = "CuterGames is a game agnostic match runner"
+homepage = "https://www.github.com/kz04px/cutergames"
