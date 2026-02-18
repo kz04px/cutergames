@@ -3,5 +3,13 @@
 version = 4
 
 [[package]]
+name = "ataxx"
+version = "0.1.0"
+source = "git+https://github.com/kz04px/rustaxx#ed32ff5161f6a244177bcb145cece6398b768d52"
+
+[[package]]
 name = "cutergames"
 version = "0.1.0"
+dependencies = [
+ "ataxx",
+]
