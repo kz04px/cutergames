@@ -1,0 +1,38 @@
+{
+    "players": [
+        {
+            "name": "Player 1",
+            "path": "some/path/here",
+            "proto": "ugi"
+        },
+        {
+            "name": "Player 2",
+            "path": "some/path/here",
+            "proto": "ugi"
+        }
+    ],
+    "pgn": {
+        "enabled": true,
+        "path": "some/path/here",
+        "overwrite": true
+    },
+    "trinomial": {
+        "enabled": true,
+        "autostop": false,
+        "alpha": 0.05,
+        "beta": 0.05,
+        "elo0": 0.0,
+        "elo1": 10.0
+    },
+    "pentanomial": {
+        "enabled": true,
+        "autostop": false,
+        "alpha": 0.05,
+        "beta": 0.05,
+        "elo0": 0.0,
+        "elo1": 10.0
+    },
+    "openings": "some/path/here",
+    "games": 500,
+    "verobse": true
+}
