@@ -1,0 +1,47 @@
+{
+    "game": "ataxx",
+    "openings": "some/path/here",
+    "games": 500,
+    "threads": 1,
+    "updates": 10,
+    "tc": "1000+10",
+    "verbose": true,
+    "trinomial": {
+        "enabled": true,
+        "autostop": false,
+        "model": "normalized",
+        "alpha": 0.05,
+        "beta": 0.05,
+        "elo0": 0.0,
+        "elo1": 10.0
+    },
+    "pentanomial": {
+        "enabled": true,
+        "autostop": false,
+        "model": "normalized",
+        "alpha": 0.05,
+        "beta": 0.05,
+        "elo0": 0.0,
+        "elo1": 10.0
+    },
+    "players": [
+        {
+            "name": "Player 1",
+            "path": "some/path/here",
+            "proto": "ugi",
+            "parameters": "--debug",
+            "options": {
+                "hash": "128"
+            }
+        },
+        {
+            "name": "Player 2",
+            "path": "some/path/here",
+            "proto": "ugi",
+            "tc": "5000+50",
+            "options": {
+                "hash": "128"
+            }
+        }
+    ]
+}
