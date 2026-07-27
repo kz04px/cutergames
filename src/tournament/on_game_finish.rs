@@ -1,7 +1,8 @@
+use crate::tournament::on_game_pair_result::on_game_pair_result;
 use crate::{
     sprt,
     tournament::{
-        Event, GameData, PlayerStatistics, TournamentSettings, TournamentStatistics,
+        AbortKind, Event, GameData, PlayerStatistics, TournamentSettings, TournamentStatistics,
         play::GameOutcome,
     },
 };
@@ -32,29 +33,74 @@ pub fn on_game_finish(
     }
 
     // Update player statistics
-    player_stats.get_mut(&data.player1).expect("asd").played += 1;
-    player_stats.get_mut(&data.player2).expect("asd").played += 1;
+    player_stats
+        .get_mut(&data.player1)
+        .expect("player_stats has an entry for every player")
+        .played += 1;
+    player_stats
+        .get_mut(&data.player2)
+        .expect("player_stats has an entry for every player")
+        .played += 1;
     match data.outcome {
         Some(GameOutcome::P1win) => {
-            player_stats.get_mut(&data.player1).expect("asd").wld.w += 1;
-            player_stats.get_mut(&data.player2).expect("asd").wld.l += 1;
+            player_stats
+                .get_mut(&data.player1)
+                .expect("player_stats has an entry for every player")
+                .wld
+                .w += 1;
+            player_stats
+                .get_mut(&data.player2)
+                .expect("player_stats has an entry for every player")
+                .wld
+                .l += 1;
         }
         Some(GameOutcome::P2win) => {
-            player_stats.get_mut(&data.player1).expect("asd").wld.l += 1;
-            player_stats.get_mut(&data.player2).expect("asd").wld.w += 1;
+            player_stats
+                .get_mut(&data.player1)
+                .expect("player_stats has an entry for every player")
+                .wld
+                .l += 1;
+            player_stats
+                .get_mut(&data.player2)
+                .expect("player_stats has an entry for every player")
+                .wld
+                .w += 1;
         }
         Some(GameOutcome::Draw) => {
-            player_stats.get_mut(&data.player1).expect("asd").wld.d += 1;
-            player_stats.get_mut(&data.player2).expect("asd").wld.d += 1;
+            player_stats
+                .get_mut(&data.player1)
+                .expect("player_stats has an entry for every player")
+                .wld
+                .d += 1;
+            player_stats
+                .get_mut(&data.player2)
+                .expect("player_stats has an entry for every player")
+                .wld
+                .d += 1;
         }
         None => {
+            // The game counts as unplayed, so the partner's result stays in
+            // the store for when a resumed match plays it again
             println!("<Error> Game {} finished without result", data.id);
             return;
         }
     }
 
+    // Attribute the abort, if any, to the responsible player
+    if let Some((player, kind)) = data.abort {
+        let stats = player_stats
+            .get_mut(&player)
+            .expect("player_stats has an entry for every player");
+        match kind {
+            AbortKind::Timeout => stats.timeouts += 1,
+            AbortKind::IllegalMove => stats.illegalmoves += 1,
+            AbortKind::Crash => stats.crashes += 1,
+        }
+    }
+
     // Update tournament statistics
     tournament_stats.games_completed += 1;
+    tournament_stats.total_ply += data.ply;
 
     let mut should_stop = false;
     let is_duel = settings.players.len() == 2;
@@ -63,9 +109,12 @@ pub fn on_game_finish(
     let is_trinomial_stop = if is_duel && let Some(tri) = &settings.sprt_trinomial {
         tri.autostop
             && sprt::should_stop(
-                &player_stats.get(&data.player1).expect("asd").wld,
-                tri.elo0,
-                tri.elo1,
+                sprt::trinomial::get_llr(
+                    &player_stats.get(&0).expect("Missing player 0").wld,
+                    tri.elo0,
+                    tri.elo1,
+                    tri.model,
+                ),
                 tri.alpha,
                 tri.beta,
             )
@@ -75,9 +124,12 @@ pub fn on_game_finish(
     let is_pentanomial_stop = if is_duel && let Some(penta) = &settings.sprt_pentanomial {
         penta.autostop
             && sprt::should_stop(
-                &player_stats.get(&data.player1).expect("asd").wld,
-                penta.elo0,
-                penta.elo1,
+                sprt::pentanomial::get_llr(
+                    &player_stats.get(&0).expect("Missing player 0").wld_pairs,
+                    penta.elo0,
+                    penta.elo1,
+                    penta.model,
+                ),
                 penta.alpha,
                 penta.beta,
             )
@@ -125,12 +177,17 @@ pub fn on_game_finish(
             data.outcome
         };
 
-        let _ = send.send(Event::GamePairResult(
+        // Recorded here rather than through an event, so the pair is never
+        // missing from both the store and the pair statistics when the
+        // results file is written
+        on_game_pair_result(
+            settings,
+            player_stats,
             first_player,
             second_player,
             first_result,
             second_result,
-        ));
+        );
     } else {
         pair_store.insert(data.id, data.outcome.unwrap());
     }

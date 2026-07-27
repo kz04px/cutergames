@@ -1,7 +1,12 @@
-use crate::players::{clock::ClockType, uai::UAIEngine, uci::UCIEngine, ugi::UGIEngine};
+use crate::game::Game;
+use crate::players::{
+    clock::ClockType, tei::TEIEngine, uai::UAIEngine, uci::UCIEngine, ugi::UGIEngine,
+};
 
 pub mod clock;
 mod process;
+pub use process::quit_all_engines;
+pub mod tei;
 pub mod uai;
 pub mod uci;
 pub mod ugi;
@@ -11,14 +16,24 @@ pub enum Protocol {
     UGI,
     UAI,
     UCI,
+    TEI,
 }
 
 #[must_use]
-pub fn create(name: &str, path: &str, proto: Protocol, debug: bool) -> Box<dyn Player> {
+pub fn create(
+    name: &str,
+    path: &str,
+    parameters: &str,
+    proto: Protocol,
+    game: Game,
+    clock: ClockType,
+    debug: bool,
+) -> Box<dyn Player> {
     match proto {
-        Protocol::UGI => Box::new(UGIEngine::new(name, path, ClockType::Movetime(10), debug)),
-        Protocol::UAI => Box::new(UAIEngine::new(name, path, ClockType::Movetime(10), debug)),
-        Protocol::UCI => Box::new(UCIEngine::new(name, path, debug)),
+        Protocol::UGI => Box::new(UGIEngine::new(name, path, parameters, clock, debug)),
+        Protocol::UAI => Box::new(UAIEngine::new(name, path, parameters, game, clock, debug)),
+        Protocol::UCI => Box::new(UCIEngine::new(name, path, parameters, game, clock, debug)),
+        Protocol::TEI => Box::new(TEIEngine::new(name, path, parameters, game, clock, debug)),
     }
 }
 
@@ -28,6 +43,7 @@ pub fn get_protocol(name: &str) -> Option<Protocol> {
         "ugi" => Some(Protocol::UGI),
         "uai" => Some(Protocol::UAI),
         "uci" => Some(Protocol::UCI),
+        "tei" => Some(Protocol::TEI),
         _ => None,
     }
 }
@@ -35,11 +51,14 @@ pub fn get_protocol(name: &str) -> Option<Protocol> {
 pub trait Player {
     fn init(&mut self);
 
+    // Sends `setoption`; meant to be called after init() and before isready()
+    fn set_option(&mut self, name: &str, value: &str);
+
     fn isready(&mut self);
 
     fn set_position(&mut self, fen: &str);
 
-    fn get_move(&mut self) -> Option<String>;
+    fn get_move(&mut self, p1_clock: ClockType, p2_clock: ClockType) -> Option<String>;
 
     fn makemove(&mut self, mvstr: &str) -> bool;
 
@@ -76,6 +95,10 @@ mod tests {
         assert_eq!(get_protocol("uci"), Some(Protocol::UCI));
         assert_eq!(get_protocol("Uci"), Some(Protocol::UCI));
         assert_eq!(get_protocol("UCI"), Some(Protocol::UCI));
+
+        assert_eq!(get_protocol("tei"), Some(Protocol::TEI));
+        assert_eq!(get_protocol("Tei"), Some(Protocol::TEI));
+        assert_eq!(get_protocol("TEI"), Some(Protocol::TEI));
     }
 
     #[test]

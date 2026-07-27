@@ -1,0 +1,41 @@
+{
+    "game": "tak",
+    "openings": "/home/personal/programming/cutergames/openings/tak/6x6/sprt_balanced.book",
+    "games": 5000,
+    "threads": 1,
+    "updates": 10,
+    "tc": "1000+10",
+    "verbose": false,
+    "trinomial": {
+        "enabled": true,
+        "autostop": false,
+        "model": "normalized",
+        "alpha": 0.05,
+        "beta": 0.05,
+        "elo0": 0.0,
+        "elo1": 10.0
+    },
+    "pentanomial": {
+        "enabled": true,
+        "autostop": false,
+        "model": "normalized",
+        "alpha": 0.05,
+        "beta": 0.05,
+        "elo0": 0.0,
+        "elo1": 10.0
+    },
+    "players": [
+        {
+            "name": "Faeries New",
+            "path": "/home/personal/programming/faeries/target/release/faeries",
+            "proto": "ugi",
+            "parameters": "--game tak"
+        },
+        {
+            "name": "Faeries Old",
+            "path": "/home/personal/programming/faeries/target/release/faeries_master",
+            "proto": "ugi",
+            "parameters": "--game tak"
+        }
+    ]
+}

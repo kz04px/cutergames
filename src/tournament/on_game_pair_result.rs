@@ -16,6 +16,7 @@ pub fn on_game_pair_result(
     }
 
     match (r1, r2) {
+        // P1win
         (Some(GameOutcome::P1win), Some(GameOutcome::P1win)) => {
             player_stats.get_mut(&p1).unwrap().wld_pairs.wl += 1;
             player_stats.get_mut(&p2).unwrap().wld_pairs.lw += 1;
@@ -24,8 +25,11 @@ pub fn on_game_pair_result(
             player_stats.get_mut(&p1).unwrap().wld_pairs.ww += 1;
             player_stats.get_mut(&p2).unwrap().wld_pairs.ll += 1;
         }
-        (Some(GameOutcome::P1win), Some(GameOutcome::Draw)) => todo!("Uh oh 1"),
-
+        (Some(GameOutcome::P1win), Some(GameOutcome::Draw)) => {
+            player_stats.get_mut(&p1).unwrap().wld_pairs.wd += 1;
+            player_stats.get_mut(&p2).unwrap().wld_pairs.ld += 1;
+        }
+        // P2win
         (Some(GameOutcome::P2win), Some(GameOutcome::P1win)) => {
             player_stats.get_mut(&p1).unwrap().wld_pairs.ll += 1;
             player_stats.get_mut(&p2).unwrap().wld_pairs.ww += 1;
@@ -34,11 +38,23 @@ pub fn on_game_pair_result(
             player_stats.get_mut(&p1).unwrap().wld_pairs.lw += 1;
             player_stats.get_mut(&p2).unwrap().wld_pairs.wl += 1;
         }
-        (Some(GameOutcome::P2win), Some(GameOutcome::Draw)) => todo!("Uh oh 2"),
-
-        (Some(GameOutcome::Draw), Some(GameOutcome::P1win)) => todo!("Uh oh 3"),
-        (Some(GameOutcome::Draw), Some(GameOutcome::P2win)) => todo!("Uh oh 4"),
-        (Some(GameOutcome::Draw), Some(GameOutcome::Draw)) => todo!("Uh oh 5"),
+        (Some(GameOutcome::P2win), Some(GameOutcome::Draw)) => {
+            player_stats.get_mut(&p1).unwrap().wld_pairs.ld += 1;
+            player_stats.get_mut(&p2).unwrap().wld_pairs.wd += 1;
+        }
+        // P1Draw
+        (Some(GameOutcome::Draw), Some(GameOutcome::P1win)) => {
+            player_stats.get_mut(&p1).unwrap().wld_pairs.dl += 1;
+            player_stats.get_mut(&p2).unwrap().wld_pairs.dw += 1;
+        }
+        (Some(GameOutcome::Draw), Some(GameOutcome::P2win)) => {
+            player_stats.get_mut(&p1).unwrap().wld_pairs.dw += 1;
+            player_stats.get_mut(&p2).unwrap().wld_pairs.dl += 1;
+        }
+        (Some(GameOutcome::Draw), Some(GameOutcome::Draw)) => {
+            player_stats.get_mut(&p1).unwrap().wld_pairs.dd += 1;
+            player_stats.get_mut(&p2).unwrap().wld_pairs.dd += 1;
+        }
 
         (_, _) => {}
     }

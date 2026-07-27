@@ -1,9 +1,13 @@
 use crate::players::Player;
 use crate::players::clock::ClockType;
 use crate::tournament::GameData;
+use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::Instant;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum GameOutcome {
     P1win,
     P2win,
@@ -15,7 +19,15 @@ enum AbortReason {
     IllegalMove(usize, String),
     MaxGameLength,
     NoTurn,
-    PlayerStall,
+    Crash(usize),
+}
+
+// How a game-ending abort is attributed to a player for statistics.
+#[derive(Debug, Clone, Copy)]
+pub enum AbortKind {
+    Timeout,
+    IllegalMove,
+    Crash,
 }
 
 #[must_use]
@@ -24,8 +36,8 @@ pub fn play(
     p1_id: usize,
     p2_id: usize,
     fen: &str,
-    players: &mut Vec<Box<dyn Player>>,
-) -> Option<GameData> {
+    players: &[Rc<RefCell<Box<dyn Player>>>],
+) -> GameData {
     debug_assert!(players.len() > 1);
 
     let max_ply = 1024;
@@ -34,22 +46,18 @@ pub fn play(
     let mut aborted = None;
 
     // Set initial positions
-    for player in players.iter_mut() {
-        player.set_position(fen);
+    for player in players {
+        player.borrow_mut().set_position(fen);
     }
 
     loop {
         // Get our judge
-        if players
-            .get_mut(0)
-            .expect("Couldn't find judge")
-            .is_gameover()
-        {
+        if players[0].borrow_mut().is_gameover() {
             break;
         }
 
         // Get current turn
-        let turn = if let Some(turn) = players.get_mut(0).expect("Couldn't find judge").get_turn() {
+        let turn = if let Some(turn) = players[0].borrow_mut().get_turn() {
             turn
         } else {
             aborted = Some(AbortReason::NoTurn);
@@ -57,44 +65,48 @@ pub fn play(
         };
 
         // isready
-        players
-            .get_mut(turn)
-            .expect("Can't find current player")
-            .isready();
+        players[turn].borrow_mut().isready();
+
+        // The go command always describes both sides' clocks, regardless
+        // of whose turn it is
+        let p1_clock = *players[0].borrow_mut().get_clock();
+        let p2_clock = *players[1].borrow_mut().get_clock();
 
         let start = Instant::now();
 
         // Get move from current player
-        let mv = players
-            .get_mut(turn)
-            .expect("Can't find current player")
-            .get_move()
-            .expect("No move string returned from engine");
+        let mv = match players[turn].borrow_mut().get_move(p1_clock, p2_clock) {
+            Some(mv) => mv,
+            None => {
+                if turn == 0 {
+                    result = Some(GameOutcome::P2win);
+                } else {
+                    result = Some(GameOutcome::P1win);
+                }
+                aborted = Some(AbortReason::Crash(turn));
+                break;
+            }
+        };
 
         let elapsed = start.elapsed();
 
         // Legal move?
-        let is_legal = players
-            .get_mut(0)
-            .expect("Couldn't find judge")
-            .is_legal(&mv);
-
-        let clock = players
-            .get_mut(turn)
-            .expect("Can't find current player")
-            .get_clock();
+        let is_legal = players[0].borrow_mut().is_legal(&mv);
 
         // Ran out of time?
-        let is_timeout = match clock {
-            ClockType::Movetime(ms) => elapsed.as_millis() > *ms + 10,
-            ClockType::Depth(_) => false,
-            ClockType::Time(remaining, increment) => {
-                if elapsed.as_millis() >= *remaining {
-                    true
-                } else {
-                    *remaining -= elapsed.as_millis();
-                    *remaining += *increment;
-                    false
+        let is_timeout = {
+            let mut player = players[turn].borrow_mut();
+            match player.get_clock() {
+                ClockType::Movetime(ms) => elapsed.as_millis() > *ms + 10,
+                ClockType::Depth(_) => false,
+                ClockType::Time(remaining, increment) => {
+                    if elapsed.as_millis() >= *remaining {
+                        true
+                    } else {
+                        *remaining -= elapsed.as_millis();
+                        *remaining += *increment;
+                        false
+                    }
                 }
             }
         };
@@ -106,7 +118,7 @@ pub fn play(
             } else {
                 result = Some(GameOutcome::P1win);
             }
-            aborted = Some(AbortReason::IllegalMove(0, mv));
+            aborted = Some(AbortReason::IllegalMove(turn, mv));
             break;
         }
 
@@ -131,81 +143,72 @@ pub fn play(
         num_ply += 1;
 
         // Update positions
-        for player in players.iter_mut() {
-            player.makemove(&mv);
+        for player in players {
+            player.borrow_mut().makemove(&mv);
         }
     }
 
-    // Was the game aborted?
-    match aborted {
-        // Result exists due to forfeit
-        Some(AbortReason::Timeout(_id)) => {
-            return Some(GameData {
-                id: 0,
-                outcome: result,
-                player1: 0,
-                player2: 1,
-                ply: num_ply,
-            });
-        }
-        Some(AbortReason::IllegalMove(_id, _movestr)) => {
-            return Some(GameData {
-                id: 0,
-                outcome: result,
-                player1: 0,
-                player2: 1,
-                ply: num_ply,
-            });
-        }
-        Some(AbortReason::PlayerStall) => {
-            return Some(GameData {
-                id: 0,
-                outcome: result,
-                player1: 0,
-                player2: 1,
-                ply: num_ply,
-            });
-        }
-        Some(AbortReason::MaxGameLength) => {
-            return Some(GameData {
-                id: 0,
-                outcome: None,
-                player1: 0,
-                player2: 1,
-                ply: num_ply,
-            });
-        }
-        // No result
-        Some(AbortReason::NoTurn) => {
-            return Some(GameData {
-                id: 0,
-                outcome: None,
-                player1: 0,
-                player2: 1,
-                ply: num_ply,
-            });
-        }
-        None => {}
+    // A turn slot (0 or 1) maps onto p1_id/p2_id the same way outcomes do above.
+    let player_id_of = |turn: usize| if turn == 0 { p1_id } else { p2_id };
+
+    // Was the game aborted? The result, if any, was decided above by forfeit.
+    if let Some(reason) = &aborted {
+        let abort = match reason {
+            AbortReason::Timeout(id) => {
+                println!("<Abort> Game #{} -- player {} ran out of time", game_id, id);
+                Some((player_id_of(*id), AbortKind::Timeout))
+            }
+            AbortReason::IllegalMove(id, movestr) => {
+                println!(
+                    "<Abort> Game #{} -- player {} played the illegal move \"{}\"",
+                    game_id, id, movestr
+                );
+                Some((player_id_of(*id), AbortKind::IllegalMove))
+            }
+            AbortReason::MaxGameLength => {
+                println!("<Abort> Game #{} -- maximum game length reached", game_id);
+                None
+            }
+            AbortReason::NoTurn => {
+                println!(
+                    "<Abort> Game #{} -- couldn't determine whose turn it is",
+                    game_id
+                );
+                None
+            }
+            AbortReason::Crash(id) => {
+                println!(
+                    "<Abort> Game #{} -- player {} stopped responding",
+                    game_id, id
+                );
+                Some((player_id_of(*id), AbortKind::Crash))
+            }
+        };
+
+        return GameData {
+            id: game_id,
+            outcome: result,
+            player1: p1_id,
+            player2: p2_id,
+            ply: num_ply,
+            abort,
+        };
     }
 
     // Ask the judge for the result
-    let asd = players
-        .get_mut(0)
-        .expect("Couldn't find judge")
-        .query_result()
-        .unwrap();
-    result = match asd.as_str() {
-        "p1win" => Some(GameOutcome::P1win),
-        "p2win" => Some(GameOutcome::P2win),
-        "draw" => Some(GameOutcome::Draw),
+    result = match players[0].borrow_mut().query_result().as_deref() {
+        Some("p1win") => Some(GameOutcome::P1win),
+        Some("p2win") => Some(GameOutcome::P2win),
+        Some("draw") => Some(GameOutcome::Draw),
         _ => None,
     };
 
-    Some(GameData {
+    GameData {
         id: game_id,
         outcome: result,
         player1: p1_id,
         player2: p2_id,
         ply: num_ply,
-    })
+        abort: None,
+    }
 }

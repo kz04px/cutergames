@@ -1,28 +1,23 @@
-use crate::players::clock::ClockType;
+use crate::players::clock::{ClockType, go_command};
 use crate::players::{Player, process::EngineProcess};
 
 pub struct UGIEngine {
-    name: String,
     process: EngineProcess,
     clock: ClockType,
 }
 
 impl UGIEngine {
-    pub fn new(name: &str, path: &str, clock: ClockType, debug: bool) -> Self {
-        if debug {
-            Self {
-                name: name.to_string(),
-                process: EngineProcess::new(path, &|line| {
-                    println!("{:?}:ugi> {}", std::thread::current().id(), line);
-                }),
-                clock,
-            }
+    pub fn new(name: &str, path: &str, parameters: &str, clock: ClockType, debug: bool) -> Self {
+        let name = name.to_string();
+        let callback: Box<dyn Fn(&str)> = if debug {
+            Box::new(move |line: &str| println!("{}:ugi> {}", name, line))
         } else {
-            Self {
-                name: name.to_string(),
-                process: EngineProcess::new(path, &|_line| {}),
-                clock,
-            }
+            Box::new(|_line: &str| {})
+        };
+
+        Self {
+            process: EngineProcess::new(path, parameters, callback),
+            clock,
         }
     }
 }
@@ -40,6 +35,10 @@ impl Player for UGIEngine {
         self.process.wait("ugiok\n");
     }
 
+    fn set_option(&mut self, name: &str, value: &str) {
+        self.process.set_option(name, value);
+    }
+
     fn isready(&mut self) {
         self.process.send("isready\n");
         self.process.wait("readyok\n");
@@ -53,17 +52,17 @@ impl Player for UGIEngine {
         }
     }
 
-    fn get_move(&mut self) -> Option<String> {
-        self.process.send("go movetime 10\n");
+    fn get_move(&mut self, p1_clock: ClockType, p2_clock: ClockType) -> Option<String> {
+        self.process
+            .send(&go_command(self.clock, p1_clock, p2_clock));
         let mut movestr = None;
         self.process.wait_magic(&mut |msg: &str| -> bool {
-            let found_bestmove = msg[0..8] == *"bestmove";
-            if found_bestmove {
-                movestr = Some(msg[9..msg.len() - 1].to_string());
-                true
-            } else {
-                false
+            let mut parts = msg.split_whitespace();
+            if parts.next() != Some("bestmove") {
+                return false;
             }
+            movestr = parts.next().map(String::from);
+            true
         });
         movestr
     }
@@ -77,10 +76,10 @@ impl Player for UGIEngine {
         self.process.send("query gameover\n");
         let mut is_over = false;
         self.process.wait_magic(&mut |msg: &str| -> bool {
-            if msg == "response true\n" {
+            if msg.trim_end() == "response true" {
                 is_over = true;
                 true
-            } else if msg == "response false\n" {
+            } else if msg.trim_end() == "response false" {
                 is_over = false;
                 true
             } else {
@@ -98,10 +97,10 @@ impl Player for UGIEngine {
         self.process.send("query p1turn\n");
         let mut turn = None;
         self.process.wait_magic(&mut |msg: &str| -> bool {
-            if msg == "response true\n" {
+            if msg.trim_end() == "response true" {
                 turn = Some(0);
                 true
-            } else if msg == "response false\n" {
+            } else if msg.trim_end() == "response false" {
                 turn = Some(1);
                 true
             } else {
@@ -115,20 +114,20 @@ impl Player for UGIEngine {
         self.process.send("query result\n");
         let mut result = None;
         self.process.wait_magic(&mut |msg: &str| -> bool {
-            match msg {
-                "response p1win\n" => {
+            match msg.trim_end() {
+                "response p1win" => {
                     result = Some("p1win".to_string());
                     true
                 }
-                "response p2win\n" => {
+                "response p2win" => {
                     result = Some("p2win".to_string());
                     true
                 }
-                "response draw\n" => {
+                "response draw" => {
                     result = Some("draw".to_string());
                     true
                 }
-                "response none\n" => {
+                "response none" => {
                     result = Some("none".to_string());
                     true
                 }
