@@ -384,7 +384,7 @@ mod tests {
     fn example_settings() {
         // The example's openings path is a placeholder, so it can't go
         // through from_json
-        let file: FileSettings = serde_json::from_str(include_str!("../example.json")).unwrap();
+        let file: FileSettings = serde_json::from_str(include_str!("../../example.json")).unwrap();
         assert_eq!(
             convert_clock([&file.tc, &file.st, &file.depth]).unwrap(),
             Some(ClockType::Time(1000, 10))

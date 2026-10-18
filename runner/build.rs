@@ -2,8 +2,8 @@ use std::process::Command;
 
 // Records the commit being built, for the version saved in results files
 fn main() {
-    println!("cargo:rerun-if-changed=.git/HEAD");
-    println!("cargo:rerun-if-changed=.git/refs/heads");
+    println!("cargo:rerun-if-changed=../.git/HEAD");
+    println!("cargo:rerun-if-changed=../.git/refs/heads");
 
     let commit = Command::new("git")
         .args(["rev-parse", "--short", "HEAD"])

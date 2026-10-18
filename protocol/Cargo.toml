@@ -1,0 +1,11 @@
+[package]
+name = "protocol"
+version = "0.1.0"
+edition = "2024"
+description = "Wire protocol shared by CuterGames' server and client"
+homepage = "https://www.github.com/kz04px/cutergames"
+
+[dependencies]
+serde = { workspace = true }
+# preserve_order keeps an engine's options in the order the job lists them
+serde_json = { workspace = true, features = ["preserve_order"] }

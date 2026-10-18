@@ -2,6 +2,16 @@
 A match runner for engines following the UGI protocol (UAI, UCI and TEI are
 also supported).
 
+This is a Cargo workspace with four crates:
+- `runner` -- the match runner itself (binary name `cutergames`), documented
+  below.
+- `server` -- distributes match jobs across connected clients.
+- `client` -- connects to a server and plays the tasks it hands out, via
+  the runner.
+- `protocol` -- the wire protocol shared by `server` and `client`.
+
+See each crate's own README for details on `server` and `client`.
+
 ---
 
 ## Supported Games

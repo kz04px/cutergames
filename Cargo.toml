@@ -1,15 +1,9 @@
-[package]
-name = "cutergames"
-version = "0.1.0"
-edition = "2024"
-description = "CuterGames is a game agnostic match runner"
-homepage = "https://www.github.com/kz04px/cutergames"
+[workspace]
+resolver = "3"
+members = ["runner", "server", "client", "protocol"]
 
-[dependencies]
+[workspace.dependencies]
 clap = "4"
 ctrlc = "3.5.2"
-games = { git = "https://github.com/kz04px/games", version = "0.1.0" }
-lru = "0.18.5"
-serde = { version = "1.0.229", features = ["derive"] }
-serde_json = { version = "1.0.154", features = ["preserve_order"] }
-sha2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

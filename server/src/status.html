@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CuterGames server</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; margin: 2rem; background: #fff; color: #111; }
+  @media (prefers-color-scheme: dark) { body { background: #16181d; color: #e6e6e6; } }
+  h1 { font-size: 1.2rem; }
+  table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+  th, td { text-align: left; padding: 0.4rem 0.8rem; border-bottom: 1px solid #8884; }
+  th { font-weight: 600; }
+  progress { width: 100%; height: 0.9rem; }
+  .finished { opacity: 0.6; }
+  .empty { color: #888; font-style: italic; }
+  #updated { color: #888; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<h1>CuterGames server</h1>
+<div id="updated">loading...</div>
+<table id="jobs">
+  <thead>
+    <tr>
+      <th>Job</th>
+      <th>Game</th>
+      <th>Match</th>
+      <th>Progress</th>
+      <th>W - L - D</th>
+      <th>No result</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script>
+async function refresh() {
+  let jobs;
+  try {
+    const res = await fetch("/api/jobs");
+    jobs = await res.json();
+  } catch (err) {
+    document.getElementById("updated").textContent = "Failed to reach the server: " + err;
+    return;
+  }
+
+  const body = document.querySelector("#jobs tbody");
+  body.innerHTML = "";
+
+  if (jobs.length === 0) {
+    const row = body.insertRow();
+    const cell = row.insertCell();
+    cell.colSpan = 7;
+    cell.className = "empty";
+    cell.textContent = "No jobs yet.";
+  }
+
+  for (const job of jobs) {
+    const row = body.insertRow();
+    if (job.finished) row.className = "finished";
+
+    row.insertCell().textContent = "#" + job.id;
+    row.insertCell().textContent = job.game;
+    row.insertCell().textContent = job.player1 + " vs " + job.player2;
+
+    const progressCell = row.insertCell();
+    const bar = document.createElement("progress");
+    bar.max = job.total;
+    bar.value = job.stats.completed;
+    progressCell.appendChild(bar);
+    progressCell.appendChild(document.createTextNode(
+      " " + job.stats.completed + "/" + job.total
+    ));
+
+    row.insertCell().textContent =
+      job.stats.player1_wins + " - " + job.stats.player2_wins + " - " + job.stats.draws;
+    row.insertCell().textContent = job.stats.no_result;
+    row.insertCell().textContent = job.finished ? "Finished" : "Running";
+  }
+
+  document.getElementById("updated").textContent =
+    "Last updated " + new Date().toLocaleTimeString();
+}
+
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

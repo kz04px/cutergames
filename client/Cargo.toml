@@ -1,0 +1,11 @@
+[package]
+name = "client"
+version = "0.1.0"
+edition = "2024"
+description = "CuterGames client: connects to a server and plays the tasks it hands out"
+homepage = "https://www.github.com/kz04px/cutergames"
+
+[dependencies]
+clap = { workspace = true }
+serde_json = { workspace = true }
+protocol = { path = "../protocol" }
