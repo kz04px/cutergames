@@ -1,0 +1,21 @@
+ [
+  {
+    "game": "chess",
+    "player1": {
+      "name": "Player 1",
+      "path": "some/path/here",
+      "proto": "uci",
+      "tc": "st=100"
+    },
+    "player2": {
+      "name": "Player 2",
+      "path": "some/other/path",
+      "proto": "uci",
+      "tc": "st=100"
+    },
+    "fens": [
+      "startpos"
+    ],
+    "num_games": 100
+  }
+]
